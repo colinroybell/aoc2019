@@ -25,31 +25,49 @@ class P2:
         return "({},{})".format(self.x,self.y)         
 
 class Line:
-    def __init__(self,X,Y):
-        if (X.x == Y.x):
+    def __init__(self,X,Y,steps):
+        self.steps_base = steps  
+        # orientation 0 means base is at a, 1 means base is at b
+        self.steps_orientation = 0
+        if X.x == Y.x:
             self.orientation = 'V'
             self.k = X.x
             self.a = min(X.y, Y.y)
             self.b = max(X.y, Y.y)
+            if Y.y < X.y:
+                self.steps_orientation = 1
         else:
             assert (X.y == Y.y)
             self.orientation = 'H'
             self.k = X.y
             self.a = min(X.x, Y.x)
-            self.b = max(X.x, Y.x)    
-        print("{} {} -> {}".format(X,Y,self))    
+            self.b = max(X.x, Y.x)
+            if Y.x < X.x:
+                self.steps_orientation = 1    
+        
+        #print("{} {} -> {}".format(X,Y,self))    
+
+    def point_score(self,intercept):
+        if self.steps_orientation == 0:
+            return self.steps_base + intercept - self.a
+        else:
+            return self.steps_base + self.b - intercept    
 
     def __str__(self):
-        return "{} {},{}:{}".format(self.orientation, self.k, self.a, self.b)        
+        return "{} {},{}:{} {} {}".format(self.orientation, self.k, self.a, self.b ,self.steps_base, self.steps_orientation)   
 
-    def intersect_manhattan(self,other):
+    def intersect_score(self,part,other):
         ''' Return 0 for no intersection.
         Assume we don't need to deal with coincident lines '''
         if self.orientation == other.orientation:
             return 0
         if self.a <= other.k and other.k <= self.b and \
             other.a <= self.k and self.k <= other.b:
-            return abs(self.k) + abs(other.k)
+            if part == 'a':
+                return abs(self.k) + abs(other.k)
+            else:
+                #print("Intersect {} {}".format(self,other))
+                return self.point_score(other.k) + other.point_score(self.k)    
         else:
             return 0            
 
@@ -59,41 +77,48 @@ class Wire:
         string.rstrip() # Could sort into H and V for efficiency
         point = P2(0,0)
         dirs = string.split(',')
+        steps = 0
         for dir in dirs:
             new_point = point.add(dir)
-            print(new_point)
-            self.lines.append(Line(point,new_point))
+            #print(new_point)
+            self.lines.append(Line(point,new_point,steps))
             point = new_point
+            steps += int(dir[1:])
 
-    def intersect(self,string):
+    def intersect(self,part,string):
         dist = 0
         string.rstrip()
         point = P2(0,0)
         dirs = string.split(',')
+        steps = 0
         for dir in dirs:
             new_point = point.add(dir)
-            new_line = Line(point,new_point)
-            print(new_line)
+            new_line = Line(point,new_point,steps)
+            #print(new_line)
             for line in self.lines:
-                score = line.intersect_manhattan(new_line)
+                score = line.intersect_score(part,new_line)
                 if (score > 0):
-                    print(score)
+                    #print(score)
                     if dist == 0 or score < dist:
                         dist = score
-            point = new_point            
+            point = new_point       
+            steps += int(dir[1:])     
         return dist                
 
 
 
-def part_a(string1, string2):
+def both_parts(part, string1, string2):
     wire1 = Wire(string1)
-    return wire1.intersect(string2)
+    return wire1.intersect(part,string2)
     
 def day3a():
-    return part_a(my_string1, my_string2)
+    return both_parts('a', my_string1, my_string2)
+
+def day3b():
+    return both_parts('b', my_string1, my_string2)
 
 if __name__ == "__main__":
-    if sys.argv[1] != 'b':
+    if 'a' in sys.argv:
         print(day3a())
-    if sys.argv[1] != 'a':
+    if 'b' in sys.argv:
         print(day3b())    
