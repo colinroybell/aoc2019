@@ -1,4 +1,4 @@
-from day2 import State
+from intcode import State
 
 def test_2a():
     ''' Given inputs to fuel_needed for day 1b '''
