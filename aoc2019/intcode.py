@@ -1,7 +1,12 @@
 class State:
-    def __init__(self, string):
+    def __init__(self, string, name="anon", input_pipe=None,
+                 output_pipe=None, debug=0):
         self.pc = 0
         self.done = 0
+        self.name = name
+        self.input_pipe = input_pipe
+        self.output_pipe = output_pipe
+        self.debug = debug
         string.rstrip()
         data = string.split(',')
         self.mem = []
@@ -43,13 +48,17 @@ class State:
 
     def run(self):
         while not self.done:
+            self.run_one_step()
+        return self.get_immediate(0)
+
+    def run_one_step(self):
+        if not self.done:
             self.check_bound(self.pc)
             instruction = self.get_immediate(self.pc)
-            print(self.pc, instruction)
             op_code = instruction % 100
             assert(op_code in dispatch)
             dispatch[op_code](self, instruction)
-        return self.get_immediate(0)
+        return self.done
 
 
 def get_modes(instruction):
@@ -87,7 +96,18 @@ def input_(state, instruction):
     ''' Op3: input '''
     state.pc += 1
     a = state.get_immediate(state.pc)
-    value = int(input("Input needed: "))
+    if state.input_pipe is not None:
+        if len(state.input_pipe):
+            value = state.input_pipe.pop(0)
+            if state.debug:
+                print("{} read {}".format(state.name, value))
+        else:
+            if state.debug:
+                print("{} blocking".format(state.name))
+            state.pc -= 1
+            return
+    else:
+        value = int(input("Input needed: "))
     state.set_immediate(a, value)
     state.pc += 1
 
@@ -97,7 +117,12 @@ def output(state, instruction):
     mode = get_modes(instruction)
     state.pc += 1
     value = state.get(state.pc, 0)
-    print("Output {}".format(value))
+    if state.output_pipe is not None:
+        state.output_pipe.append(value)
+        if state.debug:
+            print("{} wrote {}".format(state.name, value))
+    else:
+        print("Output {}".format(value))
     state.pc += 1
 
 
