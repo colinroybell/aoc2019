@@ -7,6 +7,7 @@ class State:
         self.input_pipe = input_pipe
         self.output_pipe = output_pipe
         self.debug = debug
+        self.relative_base = 0
         string.rstrip()
         data = string.split(',')
         self.mem = []
@@ -14,7 +15,9 @@ class State:
             self.mem.append(int(datum))
 
     def check_bound(self, i):
-        assert(i >= 0 and i < len(self.mem))
+        assert(i >= 0)
+        if i >= len(self.mem):
+            self.mem.extend([0]*(i + 1 -len(self.mem)))
 
     def get_immediate(self, i):
         self.check_bound(i)
@@ -29,22 +32,36 @@ class State:
         self.check_bound(self.mem[i])
         return self.mem[self.mem[i]]
 
+    def get_relative(self, i):
+        self.check_bound(i)
+        self.check_bound(self.mem[i] + self.relative_base)
+        return self.mem[self.mem[i] + self.relative_base]
+
     def set_position(self, i, v):
         self.check_bound(i)
         self.check_bound(self.mem[i])
         self.mem[self.mem[i]] = v
 
+    def set_relative(self, i, v):
+        self.check_bound(i)
+        self.check_bound(self.mem[i] + self.relative_base)
+        self.mem[self.mem[i] + self.relative_base] = v
+
     def get(self, i, mode):
-        if mode:
-            return self.get_immediate(i)
-        else:
+        if mode == 0:
             return self.get_position(i)
+        elif mode == 1:
+            return self.get_immediate(i)
+        elif mode == 2:
+            return self.get_relative(i)
 
     def set_(self, i, v, mode):
-        if mode:
-            self.set_immediate(i, v)
-        else:
+        if mode == 0:
             self.set_position(i, v)
+        elif mode == 1:
+            self.set_immediate(i, v)
+        elif mode == 2:
+            self.set_relative(i,v)
 
     def run(self):
         while not self.done:
@@ -94,8 +111,9 @@ def multiply(state, instruction):
 
 def input_(state, instruction):
     ''' Op3: input '''
+    mode = get_modes(instruction)
     state.pc += 1
-    a = state.get_immediate(state.pc)
+    a = state.get(state.pc, 1)
     if state.input_pipe is not None:
         if len(state.input_pipe):
             value = state.input_pipe.pop(0)
@@ -108,7 +126,7 @@ def input_(state, instruction):
             return
     else:
         value = int(input("Input needed: "))
-    state.set_immediate(a, value)
+    state.set_immediate(a + state.relative_base, value)
     state.pc += 1
 
 
@@ -116,7 +134,7 @@ def output(state, instruction):
     ''' Op4: output '''
     mode = get_modes(instruction)
     state.pc += 1
-    value = state.get(state.pc, 0)
+    value = state.get(state.pc, mode[0])
     if state.output_pipe is not None:
         state.output_pipe.append(value)
         if state.debug:
@@ -181,6 +199,13 @@ def equals(state, instruction):
     state.set_(state.pc, v, mode[2])
     state.pc += 1
 
+def change_relative_base(state, instruction):
+    ''' Op 9 '''
+    mode = get_modes(instruction)
+    state.pc += 1
+    a = state.get(state.pc, mode[0])
+    state.relative_base += a
+    state.pc += 1
 
 def stop(state, instruction):
     ''' Op 99: stop '''
@@ -197,5 +222,6 @@ dispatch = {
     6: jump_if_false,
     7: less_than,
     8: equals,
+    9: change_relative_base,
     99: stop
 }
