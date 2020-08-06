@@ -8,6 +8,7 @@ class State:
         self.output_pipe = output_pipe
         self.debug = debug
         self.relative_base = 0
+        self.waiting_for_input = 0
         string.rstrip()
         data = string.split(',')
         self.mem = []
@@ -17,7 +18,7 @@ class State:
     def check_bound(self, i):
         assert(i >= 0)
         if i >= len(self.mem):
-            self.mem.extend([0]*(i + 1 -len(self.mem)))
+            self.mem.extend([0] * (i + 1 - len(self.mem)))
 
     def get_immediate(self, i):
         self.check_bound(i)
@@ -61,7 +62,7 @@ class State:
         elif mode == 1:
             self.set_immediate(i, v)
         elif mode == 2:
-            self.set_relative(i,v)
+            self.set_relative(i, v)
 
     def run(self):
         while not self.done:
@@ -123,11 +124,13 @@ def input_(state, instruction):
             if state.debug:
                 print("{} blocking".format(state.name))
             state.pc -= 1
+            state.waiting_for_input = 1
             return
     else:
         value = int(input("Input needed: "))
     state.set_immediate(a + state.relative_base, value)
     state.pc += 1
+    state.waiting_for_input = 0
 
 
 def output(state, instruction):
@@ -199,6 +202,7 @@ def equals(state, instruction):
     state.set_(state.pc, v, mode[2])
     state.pc += 1
 
+
 def change_relative_base(state, instruction):
     ''' Op 9 '''
     mode = get_modes(instruction)
@@ -206,6 +210,7 @@ def change_relative_base(state, instruction):
     a = state.get(state.pc, mode[0])
     state.relative_base += a
     state.pc += 1
+
 
 def stop(state, instruction):
     ''' Op 99: stop '''
