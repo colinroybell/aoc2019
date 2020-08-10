@@ -128,7 +128,10 @@ def input_(state, instruction):
             return
     else:
         value = int(input("Input needed: "))
-    state.set_immediate(a + state.relative_base, value)
+    if mode[0] == 2:
+        state.set_immediate(a + state.relative_base, value)
+    else:
+        state.set_immediate(a, value)
     state.pc += 1
     state.waiting_for_input = 0
 
