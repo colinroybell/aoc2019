@@ -59,6 +59,7 @@ def both_parts(filename, part):
     copy_ordering = ordering[:]
 
     if part == 'a':
+        # Run a topological sort
         while ordering:
             node = ordering.pop()
             if node.name != 'ORE':
