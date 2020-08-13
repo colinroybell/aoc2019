@@ -9,4 +9,7 @@ def test_18a():
     assert(both_parts('data/day18_test5.txt', 'a') == 81)
 
 def test_18b():
-    pass
+    assert(both_parts('data/day18_test6.txt', 'b') == 8)
+    assert(both_parts('data/day18_test7.txt', 'b') == 24)
+    assert(both_parts('data/day18_test8.txt', 'b') == 32)
+    assert(both_parts('data/day18_test9.txt', 'b') == 72)

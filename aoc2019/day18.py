@@ -65,13 +65,26 @@ class Node:
         self.links = []
 
 class State:
-    def __init__(self, node, time, keys_got):
-        self.node = node
+    def __init__(self, nodes, time, keys_got):
+        self.nodes = nodes
         self.time = time
         self.keys_got = keys_got
 
     def __str__(self):
-        return("{} {} {}".format(self.node.loc, self.time, self.keys_got))
+        return("{} {} {}".format(self.loc_string(), self.time, self.keys_got))
+
+    def loc_string(self):
+        string = ""
+        for node in self.nodes:
+            string+="{} ".format(node.loc, node.id)
+        return string
+
+    # hacky
+    def loc_string_new(self, new_nodes):
+        string = ""
+        for node in new_nodes:
+            string+="{} ".format(node.loc)
+        return string
 
     def __lt__(state,other):
         return False
@@ -82,6 +95,7 @@ class State:
 def both_parts(filename, part):
     squares = {}
     keys = set()
+    start_locs = []
     with open(filename, 'r') as f:
         y = 0
         for line in f:
@@ -90,92 +104,95 @@ def both_parts(filename, part):
                 c = line[x]
                 squares[(x, y)] = c
                 if c == '@':
-                    start_loc = (x, y)
+                    start_locs.append((x, y))
                 if str.islower(c):
                     keys.add(c)
             y += 1
     output_grid(squares)
     print(keys)
 
+    start_nodes = []
+
     # Now collect nodes
-    node = Node(start_loc,'@')
-    start_node = node
-    nodes = {}
-    nodes_to_process = []
-    nodes_to_process.append((node, 0))
-    nodes[start_loc] = node
-    #print("start node at {}".format(start_loc))
+    for start_loc in start_locs:
+        node = Node(start_loc,'@')
+        start_nodes.append(node)
+        nodes = {}
+        nodes_to_process = []
+        nodes_to_process.append((node, 0))
+        nodes[start_loc] = node
+        #print("start node at {}".format(start_loc))
 
-    while nodes_to_process:
-        (node, node_input_dir) = nodes_to_process.pop()
-        loc = node.loc
-        #print("Processing from {} {}".format(loc, node_input_dir))
-        for start_dir in range (1,5):
+        while nodes_to_process:
+            (node, node_input_dir) = nodes_to_process.pop()
             loc = node.loc
+            #print("Processing from {} {}".format(loc, node_input_dir))
+            for start_dir in range (1,5):
+                loc = node.loc
 
-            #print("Trying {}".format(start_dir))
-            if start_dir == reverse(node_input_dir):
-                #print("Rejecting {} backwards".format(start_dir))
-                # Don't go back along the link we used to get here
-                continue
-            next_loc = forward(loc, start_dir)
-            if squares[next_loc] == '#':
-                #print("Rejecting {} nothing".format(start_dir))
-                # Nothing this way
-                continue
+                #print("Trying {}".format(start_dir))
+                if start_dir == reverse(node_input_dir):
+                    #print("Rejecting {} backwards".format(start_dir))
+                    # Don't go back along the link we used to get here
+                    continue
+                next_loc = forward(loc, start_dir)
+                if squares[next_loc] == '#':
+                    #print("Rejecting {} nothing".format(start_dir))
+                    # Nothing this way
+                    continue
 
 
 
-            dir = start_dir
-            done = False
-            dead_end = False
-            length = 0
-            input_dir = dir
-            next_input_dir = 0
-            loc = next_loc
-            length = 1
+                dir = start_dir
+                done = False
+                dead_end = False
+                length = 0
+                input_dir = dir
+                next_input_dir = 0
+                loc = next_loc
+                length = 1
 
-            while not done:
-                #print("at {}".format(loc))
+                while not done:
+                    #print("at {}".format(loc))
 
-                if squares[loc] != '.':
-                    # Something interesting
-                    done = True
-                else:
-                    exit_count = 0
-                    for d in range(1,5):
-                        if d == reverse(input_dir):
-                            continue
-                        test_loc = forward(loc, d)
-                        if squares[test_loc] != '#':
-                            exit_count += 1
-                            next_loc = test_loc
-                            next_input_dir = d
-
-                    if exit_count == 0:
+                    if squares[loc] != '.':
+                        # Something interesting
                         done = True
-                        dead_end = True
-                    if exit_count > 1:
-                        # junction
-                        done = True
-                    if exit_count == 1:
-                        input_dir = next_input_dir
-                        loc = next_loc
-                        length += 1
+                    else:
+                        exit_count = 0
+                        for d in range(1,5):
+                            if d == reverse(input_dir):
+                                continue
+                            test_loc = forward(loc, d)
+                            if squares[test_loc] != '#':
+                                exit_count += 1
+                                next_loc = test_loc
+                                next_input_dir = d
 
-            if not dead_end:
-                if loc in nodes:
-                    new_node = nodes[loc]
+                        if exit_count == 0:
+                            done = True
+                            dead_end = True
+                        if exit_count > 1:
+                            # junction
+                            done = True
+                        if exit_count == 1:
+                            input_dir = next_input_dir
+                            loc = next_loc
+                            length += 1
+
+                if not dead_end:
+                    if loc in nodes:
+                        new_node = nodes[loc]
+                    else:
+                        #print("new node at {}".format(loc))
+                        new_node = Node(loc, squares[loc])
+                        nodes[loc] = new_node
+                        nodes_to_process.append((new_node, input_dir))
+                    node.links.append(Link(new_node, length))
+                    new_node.links.append(Link(node, length))
                 else:
-                    #print("new node at {}".format(loc))
-                    new_node = Node(loc, squares[loc])
-                    nodes[loc] = new_node
-                    nodes_to_process.append((new_node, input_dir))
-                node.links.append(Link(new_node, length))
-                new_node.links.append(Link(node, length))
-            else:
-                pass
-                #print("dead end at {}".format(loc))
+                    pass
+                    #print("dead end at {}".format(loc))
 
     opt_possible = 0
     for _,n in nodes.items():
@@ -196,7 +213,7 @@ def both_parts(filename, part):
     queue = PriorityQueue()
     cache = {}
 
-    queue.put((0, State(start_node, 0, set())))
+    queue.put((0, State(start_nodes, 0, set())))
 
     found = False
     best = 0
@@ -207,38 +224,56 @@ def both_parts(filename, part):
         state = queue_item[1]
         print(state)
 
-        cache_key = (state.node.loc, frozenset(state.keys_got))
+        cache_key = (state.loc_string(), frozenset(state.keys_got))
 
         if cache_key in cache:
             if cache[cache_key] < state.time:
                 print("Already done in equal or better time")
         else:
+            print("adding key 2 {}".format(cache_key))
             cache[cache_key] = state.time
 
         new_set = state.keys_got.copy()
-        if str.islower(state.node.id):
-            new_set.add(state.node.id)
+        for node in state.nodes:
+            if str.islower(node.id):
+                new_set.add(node.id)
 
         if new_set == keys:
             print("Found solution")
             found = True
             best = state.time
 
-        for link in state.node.links:
-            next_node = link.node
-            if str.isupper(next_node.id) and str.lower(next_node.id) not in new_set:
-                print("Can't go to {} as {} locked".format(next_node.loc, next_node.id))
-            else:
-                new_time = state.time + link.length
-                cache_key = (next_node.loc, frozenset(new_set))
-                if cache_key in cache and cache[cache_key] <= new_time:
-                    # Already done better
+        trial_node_list = state.nodes
+        restricted_node = -1
+        # If any of them is on state ., only use that one (we only want to
+        # search for keys with one robot at a time)
+        for i,node in enumerate(state.nodes):
+            if node.id == '.':
+                print("Restricting to {}".format(node.loc))
+                restricted_node = i
+                break
 
-                    pass
+        for i,node in enumerate(state.nodes):
+            if restricted_node > -1 and not i == restricted_node:
+                continue
+            for link in node.links:
+                next_node = link.node
+                if str.isupper(next_node.id) and str.lower(next_node.id) not in new_set:
+                    print("Can't go to {} as {} locked".format(next_node.loc, next_node.id))
                 else:
-                    print("Pushing {} at time {} with {}".format(next_node.loc, new_time, new_set))
-                    queue.put((new_time, State(next_node, new_time, new_set)))
-                    cache[cache_key] = new_time
+                    new_time = state.time + link.length
+                    new_nodes = state.nodes[:i].copy() + [next_node] + state.nodes[i+1:].copy()
+                    cache_key = (state.loc_string_new(new_nodes), frozenset(new_set))
+                    if cache_key in cache and cache[cache_key] <= new_time:
+                        # Already done better
+                        pass
+                    else:
+                        new_state = State(new_nodes, new_time, new_set)
+                        queue.put((new_time, new_state))
+                        cache[cache_key] = new_time
+                        print("adding key {}".format(cache_key))
+                        print("Pushing {} at time {} with {}: len {}".format(next_node.loc, new_time, new_set, len(cache)))
+
 
     return best
 
@@ -249,7 +284,7 @@ def day18a():
 
 
 def day18b():
-    return both_parts('data/day18.txt', 'b')
+    return both_parts('data/day18_test9.txt', 'b')
 
 
 if __name__ == "__main__":
